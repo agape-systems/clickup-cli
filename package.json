@@ -1,7 +1,7 @@
 {
-  "name": "clickup",
+  "name": "@agapesystems/clickup-cli",
   "version": "1.0.0",
-  "description": "The ClickUp CLI tool has been enhanced with comprehensive task management capabilities, docker-style command patterns, and robust error handling to help SWE-1.5 work efficiently with ClickUp when the MCP server fails.",
+  "description": "A TypeScript-based CLI tool for interacting with ClickUp API, built with Commander.js for robust argument parsing.",
   "main": "dist/index.js",
   "bin": {"clickup": "dist/index.js"},
   "scripts": {
@@ -24,7 +24,11 @@
     "yn": "^3.1.1"
   },
   "devDependencies": {},
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "keywords": ["clickup", "cli", "task-management", "api"],
+  "author": "Agape Systems",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agape-systems/clickup-cli.git"
+  }
 }
