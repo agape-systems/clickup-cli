@@ -7,7 +7,7 @@ export { taskCommand } from './task';
 export { spaceCommand, createSpaceCommand } from './space';
 
 // Folder commands
-export { folderCommand, createFolderCommand } from './folder';
+export { folderCommand, createFolderCommand, listFoldersCommand } from './folder';
 
 // List commands
 export { listCommand, createListCommand, listListsCommand } from './list';

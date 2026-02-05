@@ -58,6 +58,9 @@ clickup space create <teamId> "<space name>"
 # Create folder
 clickup folder create <spaceId> "<folder name>"
 
+# List folders in a space
+clickup folder ls <spaceId>
+
 # Create list
 clickup list create <parentId> "<list name>" [--in-space]
 

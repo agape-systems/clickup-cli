@@ -70,6 +70,10 @@ export interface ClickUpListsResponse {
   lists: ClickUpList[];
 }
 
+export interface ClickUpFoldersResponse {
+  folders: ClickUpFolder[];
+}
+
 export interface ClickUpTaskResponse extends ClickUpTask {}
 
 export interface ClickUpSpaceResponse extends ClickUpSpace {}

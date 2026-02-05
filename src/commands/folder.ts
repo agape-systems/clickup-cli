@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { makeApiRequest } from '../api';
-import { ClickUpFolder } from '../types';
+import { ClickUpFolder, ClickUpFoldersResponse } from '../types';
 
 // Create folder command
 export const createFolderCommand = new Command('create')
@@ -25,9 +25,40 @@ export const createFolderCommand = new Command('create')
     }
   });
 
+// List folders command
+export const listFoldersCommand = new Command('ls')
+  .argument('<spaceId>', 'Space ID to get folders from')
+  .description('List all folders in a space')
+  .action(async (spaceId: string) => {
+    console.log(`🔄 Fetching folders from space: ${spaceId}`);
+    
+    try {
+      const result = await makeApiRequest<ClickUpFoldersResponse>('GET', `/api/v2/space/${spaceId}/folder`);
+      
+      if (result.folders && result.folders.length > 0) {
+        console.log(`✅ Found ${result.folders.length} folder(s):`);
+        result.folders.forEach(folder => {
+          console.log(`  ${folder.id} - ${folder.name}`);
+          if (folder.hidden) {
+            console.log(`    Hidden: Yes`);
+          }
+          console.log(`    Space ID: ${folder.space_id}`);
+          console.log('');
+        });
+      } else {
+        console.log('✅ No folders found');
+      }
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error listing folders:', (error as Error).message);
+      process.exit(1);
+    }
+  });
+
 // Main folder command  
 export const folderCommand = new Command('folder')
   .description('Folder management commands');
 
 // Add subcommands to main command
 folderCommand.addCommand(createFolderCommand);
+folderCommand.addCommand(listFoldersCommand);
