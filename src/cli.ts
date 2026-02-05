@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { taskCommand, getTaskCommand } from './commands/task';
 import { 
-  createSpaceCommand, 
-  createFolderCommand, 
-  createListCommand 
-} from './commands/space';
-import { listTeamTasksCommand } from './commands/space';
+  taskCommand,
+  spaceCommand,
+  folderCommand,
+  listCommand,
+  teamCommand
+} from './commands';
 
 // Main CLI program
 const program = new Command();
@@ -20,32 +20,10 @@ program
 // Task commands
 program.addCommand(taskCommand);
 
-// Space commands
-const spaceCommand = new Command('space')
-  .description('Space management commands');
-
-spaceCommand.addCommand(createSpaceCommand);
+// Space, Folder, List, and Team commands
 program.addCommand(spaceCommand);
-
-// Folder commands
-const folderCommand = new Command('folder')
-  .description('Folder management commands');
-
-folderCommand.addCommand(createFolderCommand);
 program.addCommand(folderCommand);
-
-// List commands
-const listCommand = new Command('list')
-  .description('List management commands');
-
-listCommand.addCommand(createListCommand);
 program.addCommand(listCommand);
-
-// Team commands
-const teamCommand = new Command('team')
-  .description('Team management commands');
-
-teamCommand.addCommand(listTeamTasksCommand);
 program.addCommand(teamCommand);
 
 // Parse and execute
