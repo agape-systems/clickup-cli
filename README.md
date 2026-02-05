@@ -38,15 +38,80 @@ clickup task <taskId>
 # Create a task
 clickup task create --list-id <listId> "<task name>" [options]
 
+**Task Creation Options:**
+```bash
+# Basic task with plain text description
+clickup task create --list-id <listId> "Task name" --description "Plain text description"
+
+# Task with markdown description (recommended for rich content)
+clickup task create --list-id <listId> "Task name" --markdown "# Heading\n**Bold text**"
+
+# Task with markdown from file (best for long content)
+clickup task create --list-id <listId> "Task name" --markdown-file README.md
+
+# Task with all options
+clickup task create --list-id <listId> "Task name" \
+  --markdown-file description.md \
+  --assignees user1,user2 \
+  --priority high \
+  --due-date 2024-12-31 \
+  --status "In Progress" \
+  --tags urgent,backend \
+  --json
+```
+
 # Update task properties
 clickup task <taskId> <property> <value>
 clickup task <taskId> <property> --file <filePath>
 
 # Delete tasks
 clickup task rm <taskId1,taskId2,...>
+```
 
-# Legacy markdown update
-clickup task <taskId> markdown_description --file <filePath>
+**Available task properties for update:**
+- `name` - Task name
+- `description` - Plain text description  
+- `markdown_description` - Markdown description
+- `status` - Task status
+- `priority` - Task priority (low, normal, high, urgent)
+- `assignees` - Comma-separated user IDs
+- `due_date` - Due date (YYYY-MM-DD)
+- `tags` - Comma-separated tags
+
+**Example:**
+```bash
+# Update task name
+clickup task <taskId> name "New task name"
+
+# Update markdown description from file
+clickup task <taskId> markdown_description --file README.md
+
+# Update priority
+clickup task <taskId> priority high
+```
+
+#### JSON Output
+Add `--json` flag to any command to get structured JSON output:
+```bash
+# Task commands
+clickup task create --list-id <listId> "Task name" --json
+clickup task <taskId> --json
+clickup task ls --json
+
+# Space commands
+clickup space create <teamId> "Space name" --json
+clickup space ls <teamId> --json
+
+# Folder commands
+clickup folder create <spaceId> "Folder name" --json
+clickup folder ls <spaceId> --json
+
+# List commands
+clickup list create <parentId> "List name" --json
+clickup list ls <parentId> --json
+
+# Team commands
+clickup team ls <teamId> --json
 ```
 
 ### Space/Folder/List Commands

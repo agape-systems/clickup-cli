@@ -1,6 +1,7 @@
 // ClickUp API response types
 export interface ClickUpTask {
   id: string;
+  custom_id?: string;
   name: string;
   description?: string;
   status: {

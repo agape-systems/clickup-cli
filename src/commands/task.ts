@@ -2,13 +2,17 @@ import * as fs from 'fs';
 import { Command } from 'commander';
 import { makeApiRequest } from '../api';
 import { ClickUpTask, ClickUpTasksResponse, TaskCreateOptions, TaskUpdateOptions } from '../types';
+import { waitForCustomId, outputJson, outputPretty } from '../utils';
 
 // List tasks in a list or all accessible tasks
 export const listTasksCommand = new Command('ls')
   .argument('[listId]', 'List ID to get tasks from (optional)')
+  .option('--json', 'Output result as JSON')
   .description('List tasks in a list or all accessible tasks')
-  .action(async (listId: string | undefined) => {
-    console.log(`🔄 Fetching tasks${listId ? ` for list ${listId}` : '...'}`);
+  .action(async (listId: string | undefined, options: { json?: boolean }) => {
+    if (!options.json) {
+      console.log(`🔄 Fetching tasks${listId ? ` for list ${listId}` : '...'}`);
+    }
     
     try {
       const path = listId 
@@ -17,25 +21,36 @@ export const listTasksCommand = new Command('ls')
         
       const result = await makeApiRequest<ClickUpTasksResponse>('GET', path);
       
-      if (result.tasks && result.tasks.length > 0) {
-        console.log(`✅ Found ${result.tasks.length} task(s):`);
-        result.tasks.forEach(task => {
-          console.log(`  ${task.id} - ${task.name} [${task.status.status}]`);
-          if (task.assignees && task.assignees.length > 0) {
-            console.log(`    Assignees: ${task.assignees.map((a: any) => a.username || a.email).join(', ')}`);
-          }
-          if (task.due_date) {
-            console.log(`    Due: ${new Date(task.due_date).toLocaleDateString()}`);
-          }
-          console.log(`    URL: ${task.url}`);
-          console.log('');
-        });
+      if (options.json) {
+        outputJson(result);
       } else {
-        console.log('✅ No tasks found');
+        if (result.tasks && result.tasks.length > 0) {
+          console.log(`✅ Found ${result.tasks.length} task(s):`);
+          result.tasks.forEach(task => {
+            console.log(`  ${task.id} - ${task.name} [${task.status.status}]`);
+            if (task.custom_id) {
+              console.log(`    Custom ID: ${task.custom_id}`);
+            }
+            if (task.assignees && task.assignees.length > 0) {
+              console.log(`    Assignees: ${task.assignees.map((a: any) => a.username || a.email).join(', ')}`);
+            }
+            if (task.due_date) {
+              console.log(`    Due: ${new Date(task.due_date).toLocaleDateString()}`);
+            }
+            console.log(`    URL: ${task.url}`);
+            console.log('');
+          });
+        } else {
+          console.log('✅ No tasks found');
+        }
       }
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error listing tasks:', (error as Error).message);
+      if (options.json) {
+        outputJson({ error: (error as Error).message });
+      } else {
+        console.error('❌ Error listing tasks:', (error as Error).message);
+      }
       process.exit(1);
     }
   });
@@ -44,21 +59,56 @@ export const listTasksCommand = new Command('ls')
 export const createTaskCommand = new Command('create')
   .requiredOption('--list-id <listId>', 'List ID to create task in')
   .argument('<taskName>', 'Task name')
-  .option('--description <description>', 'Task description')
+  .option('--description <description>', 'Plain text description (use --markdown for formatted content)')
+  .option('--markdown <content>', 'Markdown formatted description (recommended for rich content)')
+  .option('--markdown-file <filePath>', 'Read markdown description from file (recommended for long content)')
   .option('--assignees <user1,user2>', 'Comma-separated user IDs')
   .option('--priority <priority>', 'Task priority (low, normal, high, urgent)')
   .option('--due-date <date>', 'Due date (YYYY-MM-DD)')
   .option('--status <status>', 'Custom status')
   .option('--tags <tag1,tag2>', 'Comma-separated tags')
-  .description('Create a new task')
-  .action(async (taskName: string, options: TaskCreateOptions & { listId: string }) => {
-    console.log(`🔄 Creating ClickUp task: ${taskName}`);
+  .option('--json', 'Output result as JSON')
+  .description('Create a new task. Use --markdown or --markdown-file for rich formatted content.')
+  .action(async (taskName: string, options: TaskCreateOptions & { listId: string; json?: boolean; markdown?: string; markdownFile?: string }) => {
+    if (!options.json) {
+      console.log(`🔄 Creating ClickUp task: ${taskName}`);
+    }
     
     try {
       const payload: any = {
-        name: taskName,
-        description: options.description || ''
+        name: taskName
       };
+      
+      // Handle description with priority for markdown
+      if (options.markdown || options.markdownFile) {
+        let markdownContent: string;
+        
+        if (options.markdownFile) {
+          try {
+            markdownContent = fs.readFileSync(options.markdownFile, 'utf8');
+          } catch (error) {
+            if (options.json) {
+              outputJson({ error: `Error reading markdown file "${options.markdownFile}": ${(error as Error).message}` });
+            } else {
+              console.error(`❌ Error reading markdown file "${options.markdownFile}":`, (error as Error).message);
+            }
+            process.exit(1);
+          }
+        } else if (options.markdown) {
+          markdownContent = options.markdown;
+        } else {
+          if (options.json) {
+            outputJson({ error: 'Markdown content is required when using --markdown option' });
+          } else {
+            console.error('❌ Error: Markdown content is required when using --markdown option');
+          }
+          process.exit(1);
+        }
+        
+        payload.description = markdownContent;
+      } else if (options.description) {
+        payload.description = options.description;
+      }
       
       // Only add priority if explicitly specified
       if (options.priority) {
@@ -108,13 +158,27 @@ export const createTaskCommand = new Command('create')
       
       const result = await makeApiRequest<ClickUpTask>('POST', `/api/v2/list/${options.listId}/task`, payload);
       
-      console.log('✅ Task created successfully!');
-      console.log(`Task ID: ${result.id}`);
-      console.log(`Task Name: ${result.name}`);
-      console.log(`URL: ${result.url}`);
+      // Try to get custom_id with retry logic
+      const taskWithCustomId = await waitForCustomId(result.id);
+      
+      if (options.json) {
+        outputJson(taskWithCustomId);
+      } else {
+        console.log('✅ Task created successfully!');
+        console.log(`Task ID: ${taskWithCustomId.id}`);
+        if (taskWithCustomId.custom_id) {
+          console.log(`Custom ID: ${taskWithCustomId.custom_id}`);
+        }
+        console.log(`Task Name: ${taskWithCustomId.name}`);
+        console.log(`URL: ${taskWithCustomId.url}`);
+      }
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error creating task:', (error as Error).message);
+      if (options.json) {
+        outputJson({ error: (error as Error).message });
+      } else {
+        console.error('❌ Error creating task:', (error as Error).message);
+      }
       process.exit(1);
     }
   });
@@ -122,41 +186,55 @@ export const createTaskCommand = new Command('create')
 // Get a single task (default command)
 export const getTaskCommand = new Command('<taskId>')
   .argument('<taskId>', 'Task ID to view')
+  .option('--json', 'Output result as JSON')
   .description('Get detailed information about a task')
-  .action(async (taskId: string) => {
-    console.log(`🔄 Fetching task: ${taskId}`);
+  .action(async (taskId: string, options: { json?: boolean }) => {
+    if (!options.json) {
+      console.log(`🔄 Fetching task: ${taskId}`);
+    }
     
     try {
       const result = await makeApiRequest<ClickUpTask>('GET', `/api/v2/task/${taskId}`);
       
-      console.log('✅ Task Details:');
-      console.log(`  ID: ${result.id}`);
-      console.log(`  Name: ${result.name}`);
-      console.log(`  Status: ${result.status.status}`);
-      console.log(`  Priority: ${result.priority?.priority || 'None'}`);
-      console.log(`  Created: ${new Date(result.date_created).toLocaleString()}`);
-      console.log(`  Updated: ${new Date(result.date_updated).toLocaleString()}`);
-      
-      if (result.description) {
-        console.log(`  Description: ${result.description}`);
+      if (options.json) {
+        outputJson(result);
+      } else {
+        console.log('✅ Task Details:');
+        console.log(`  ID: ${result.id}`);
+        if (result.custom_id) {
+          console.log(`  Custom ID: ${result.custom_id}`);
+        }
+        console.log(`  Name: ${result.name}`);
+        console.log(`  Status: ${result.status.status}`);
+        console.log(`  Priority: ${result.priority?.priority || 'None'}`);
+        console.log(`  Created: ${new Date(result.date_created).toLocaleString()}`);
+        console.log(`  Updated: ${new Date(result.date_updated).toLocaleString()}`);
+        
+        if (result.description) {
+          console.log(`  Description: ${result.description}`);
+        }
+        
+        if (result.assignees && result.assignees.length > 0) {
+          console.log(`  Assignees: ${result.assignees.map((a: any) => a.username || a.email).join(', ')}`);
+        }
+        
+        if (result.due_date) {
+          console.log(`  Due Date: ${new Date(result.due_date).toLocaleString()}`);
+        }
+        
+        if (result.tags && result.tags.length > 0) {
+          console.log(`  Tags: ${result.tags.join(', ')}`);
+        }
+        
+        console.log(`  URL: ${result.url}`);
       }
-      
-      if (result.assignees && result.assignees.length > 0) {
-        console.log(`  Assignees: ${result.assignees.map((a: any) => a.username || a.email).join(', ')}`);
-      }
-      
-      if (result.due_date) {
-        console.log(`  Due Date: ${new Date(result.due_date).toLocaleString()}`);
-      }
-      
-      if (result.tags && result.tags.length > 0) {
-        console.log(`  Tags: ${result.tags.join(', ')}`);
-      }
-      
-      console.log(`  URL: ${result.url}`);
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error getting task:', (error as Error).message);
+      if (options.json) {
+        outputJson({ error: (error as Error).message });
+      } else {
+        console.error('❌ Error getting task:', (error as Error).message);
+      }
       process.exit(1);
     }
   });
@@ -167,9 +245,12 @@ export const updateTaskCommand = new Command('update')
   .argument('<property>', 'Property name to update')
   .argument('<value>', 'New value or --file <filePath>')
   .option('--file <filePath>', 'Read value from file')
+  .option('--json', 'Output result as JSON')
   .description('Update a task property')
-  .action(async (taskId: string, propName: string, valueOrFlag: string, options: { file?: string }, command: Command) => {
-    console.log(`🔄 Updating task ${taskId} property: ${propName}`);
+  .action(async (taskId: string, propName: string, valueOrFlag: string, options: { file?: string; json?: boolean }, command: Command) => {
+    if (!options.json) {
+      console.log(`🔄 Updating task ${taskId} property: ${propName}`);
+    }
     
     try {
       let updateValue: string;
@@ -178,7 +259,11 @@ export const updateTaskCommand = new Command('update')
         try {
           updateValue = fs.readFileSync(options.file, 'utf8');
         } catch (error) {
-          console.error(`❌ Error reading file "${options.file}":`, (error as Error).message);
+          if (options.json) {
+            outputJson({ error: `Error reading file "${options.file}": ${(error as Error).message}` });
+          } else {
+            console.error(`❌ Error reading file "${options.file}":`, (error as Error).message);
+          }
           process.exit(1);
         }
       } else {
@@ -193,6 +278,9 @@ export const updateTaskCommand = new Command('update')
           payload.name = updateValue;
           break;
         case 'description':
+          payload.description = updateValue;
+          break;
+        case 'markdown_description':
           payload.description = updateValue;
           break;
         case 'status':
@@ -228,20 +316,32 @@ export const updateTaskCommand = new Command('update')
           payload.tags = updateValue.split(',').map(tag => tag.trim());
           break;
         default:
-          console.error(`❌ Unknown property: ${propName}`);
-          console.error('Valid properties: name, description, status, priority, assignees, due_date, tags');
+          if (options.json) {
+            outputJson({ error: `Unknown property: ${propName}` });
+          } else {
+            console.error(`❌ Unknown property: ${propName}`);
+            console.error('Valid properties: name, description, markdown_description, status, priority, assignees, due_date, tags');
+          }
           process.exit(1);
       }
       
       const result = await makeApiRequest<ClickUpTask>('PUT', `/api/v2/task/${taskId}`, payload);
       
-      console.log(`✅ Task property updated successfully!`);
-      console.log(`Task ID: ${taskId}`);
-      console.log(`Property: ${propName}`);
-      console.log(`URL: ${result.url}`);
+      if (options.json) {
+        outputJson(result);
+      } else {
+        console.log(`✅ Task property updated successfully!`);
+        console.log(`Task ID: ${taskId}`);
+        console.log(`Property: ${propName}`);
+        console.log(`URL: ${result.url}`);
+      }
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error updating task property:', (error as Error).message);
+      if (options.json) {
+        outputJson({ error: (error as Error).message });
+      } else {
+        console.error('❌ Error updating task property:', (error as Error).message);
+      }
       process.exit(1);
     }
   });
@@ -284,59 +384,13 @@ export const deleteTasksCommand = new Command('rm')
     }
   });
 
-// Legacy markdown description update
-export const updateTaskMarkdownCommand = new Command('markdown_description')
-  .argument('<taskId>', 'Task ID to update')
-  .option('--file <filePath>', 'Read markdown from file')
-  .argument('[content]', 'Markdown content (if not using --file)')
-  .description('Update task markdown description (legacy)')
-  .action(async (taskId: string, options: { file?: string }, command: Command) => {
-    console.log(`🔄 Updating ClickUp task: ${taskId}`);
-    
-    let markdownContent: string;
-    
-    if (options.file) {
-      try {
-        markdownContent = fs.readFileSync(options.file, 'utf8');
-      } catch (error) {
-        console.error(`❌ Error reading file "${options.file}":`, (error as Error).message);
-        process.exit(1);
-      }
-    } else {
-      markdownContent = command.args.slice(2).join(' '); // Get remaining args as content
-      if (!markdownContent) {
-        console.error('❌ Error: markdown content is required');
-        process.exit(1);
-      }
-    }
-    
-    if (markdownContent.length > 100) {
-      console.log(`📝 Content: ${markdownContent.substring(0, 100)}...`);
-    } else {
-      console.log(`📝 Content: ${markdownContent}`);
-    }
-    
-    try {
-      const result = await makeApiRequest<ClickUpTask>('PUT', `/api/v2/task/${taskId}`, {
-        markdown_description: markdownContent
-      });
-      
-      console.log('✅ ClickUp task updated successfully!');
-      console.log(`Task ID: ${taskId}`);
-      console.log(`URL: ${result.url}`);
-      process.exit(0);
-    } catch (error) {
-      console.error('❌ Error updating task:', (error as Error).message);
-      process.exit(1);
-    }
-  });
-
 // Main task command that routes to appropriate subcommand
 export const taskCommand = new Command('task')
   .argument('[taskId]', 'Task ID or subcommand')
   .argument('[args...]', 'Additional arguments for task operations')
+  .option('--json', 'Output result as JSON')
   .description('Task management commands')
-  .action(async (taskId: string, args: string[]) => {
+  .action(async (taskId: string, args: string[], options: { json?: boolean }) => {
     // If no arguments, show help
     if (!taskId) {
       console.error('❌ Task command requires a subcommand or task ID');
@@ -428,31 +482,38 @@ export const taskCommand = new Command('task')
         try {
           const result = await makeApiRequest<ClickUpTask>('GET', `/api/v2/task/${taskId}`);
           
-          console.log('✅ Task Details:');
-          console.log(`  ID: ${result.id}`);
-          console.log(`  Name: ${result.name}`);
-          console.log(`  Status: ${result.status.status}`);
-          console.log(`  Priority: ${result.priority?.priority || 'None'}`);
-          console.log(`  Created: ${new Date(result.date_created).toLocaleString()}`);
-          console.log(`  Updated: ${new Date(result.date_updated).toLocaleString()}`);
-          
-          if (result.description) {
-            console.log(`  Description: ${result.description}`);
+          if (options.json) {
+            outputJson(result);
+          } else {
+            console.log('✅ Task Details:');
+            console.log(`  ID: ${result.id}`);
+            if (result.custom_id) {
+              console.log(`  Custom ID: ${result.custom_id}`);
+            }
+            console.log(`  Name: ${result.name}`);
+            console.log(`  Status: ${result.status.status}`);
+            console.log(`  Priority: ${result.priority?.priority || 'None'}`);
+            console.log(`  Created: ${new Date(result.date_created).toLocaleString()}`);
+            console.log(`  Updated: ${new Date(result.date_updated).toLocaleString()}`);
+            
+            if (result.description) {
+              console.log(`  Description: ${result.description}`);
+            }
+            
+            if (result.assignees && result.assignees.length > 0) {
+              console.log(`  Assignees: ${result.assignees.map((a: any) => a.username || a.email).join(', ')}`);
+            }
+            
+            if (result.due_date) {
+              console.log(`  Due Date: ${new Date(result.due_date).toLocaleString()}`);
+            }
+            
+            if (result.tags && result.tags.length > 0) {
+              console.log(`  Tags: ${result.tags.join(', ')}`);
+            }
+            
+            console.log(`  URL: ${result.url}`);
           }
-          
-          if (result.assignees && result.assignees.length > 0) {
-            console.log(`  Assignees: ${result.assignees.map((a: any) => a.username || a.email).join(', ')}`);
-          }
-          
-          if (result.due_date) {
-            console.log(`  Due Date: ${new Date(result.due_date).toLocaleString()}`);
-          }
-          
-          if (result.tags && result.tags.length > 0) {
-            console.log(`  Tags: ${result.tags.join(', ')}`);
-          }
-          
-          console.log(`  URL: ${result.url}`);
           process.exit(0);
         } catch (error) {
           console.error('❌ Error getting task:', (error as Error).message);
@@ -481,7 +542,6 @@ taskCommand.addCommand(createTaskCommand);
 taskCommand.addCommand(deleteTasksCommand);
 taskCommand.addCommand(getTaskCommand); // Default command
 taskCommand.addCommand(updateTaskCommand);
-taskCommand.addCommand(updateTaskMarkdownCommand);
 
 // Set getTaskCommand as the default
 (getTaskCommand as any).isDefault = true;
