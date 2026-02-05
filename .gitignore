@@ -9,6 +9,12 @@ dist/
 build/
 *.tsbuildinfo
 
+# TypeScript compilation artifacts in source directory
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
+
 # Runtime data
 pids
 *.pid
