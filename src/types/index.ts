@@ -74,6 +74,10 @@ export interface ClickUpFoldersResponse {
   folders: ClickUpFolder[];
 }
 
+export interface ClickUpSpacesResponse {
+  spaces: ClickUpSpace[];
+}
+
 export interface ClickUpTaskResponse extends ClickUpTask {}
 
 export interface ClickUpSpaceResponse extends ClickUpSpace {}

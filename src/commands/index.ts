@@ -4,7 +4,7 @@
 export { taskCommand } from './task';
 
 // Space commands  
-export { spaceCommand, createSpaceCommand } from './space';
+export { spaceCommand, createSpaceCommand, listSpacesCommand } from './space';
 
 // Folder commands
 export { folderCommand, createFolderCommand, listFoldersCommand } from './folder';

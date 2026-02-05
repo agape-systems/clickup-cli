@@ -55,6 +55,9 @@ clickup task <taskId> markdown_description --file <filePath>
 # Create space
 clickup space create <teamId> "<space name>"
 
+# List spaces in a team
+clickup space ls <teamId>
+
 # Create folder
 clickup folder create <spaceId> "<folder name>"
 
