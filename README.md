@@ -64,19 +64,44 @@ clickup task create --list-id <listId> "Task name" \
 clickup task <taskId> <property> <value>
 clickup task <taskId> <property> --file <filePath>
 
+**Task Update Examples:**
+```bash
+# Update task name
+clickup task <taskId> name "New task name"
+
+# Update with plain text description
+clickup task <taskId> description "Plain text description"
+
+# Update with markdown description (recommended for rich content)
+clickup task <taskId> markdown_description "# Heading\n**Bold text**"
+
+# Update markdown description from file (best for long content)
+clickup task <taskId> markdown_description --file README.md
+
+# Update other properties
+clickup task <taskId> priority high
+clickup task <taskId> status "In Progress"
+clickup task <taskId> assignees user1,user2
+```
+
 # Delete tasks
 clickup task rm <taskId1,taskId2,...>
 ```
 
 **Available task properties for update:**
 - `name` - Task name
-- `description` - Plain text description  
-- `markdown_description` - Markdown description
+- `description` - Plain text description
+- `markdown_description` - Markdown description (recommended for rich content)
 - `status` - Task status
 - `priority` - Task priority (low, normal, high, urgent)
 - `assignees` - Comma-separated user IDs
 - `due_date` - Due date (YYYY-MM-DD)
 - `tags` - Comma-separated tags
+
+**Markdown Update Tips:**
+- Use `markdown_description` for rich formatted content
+- Use `--file` option for long markdown content
+- Supports headings, bold, italic, lists, links, and other markdown features
 
 **Example:**
 ```bash

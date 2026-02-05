@@ -244,9 +244,9 @@ export const updateTaskCommand = new Command('update')
   .argument('<taskId>', 'Task ID to update')
   .argument('<property>', 'Property name to update')
   .argument('<value>', 'New value or --file <filePath>')
-  .option('--file <filePath>', 'Read value from file')
+  .option('--file <filePath>', 'Read value from file (recommended for markdown_description)')
   .option('--json', 'Output result as JSON')
-  .description('Update a task property')
+  .description('Update a task property. Use markdown_description for rich formatted content.')
   .action(async (taskId: string, propName: string, valueOrFlag: string, options: { file?: string; json?: boolean }, command: Command) => {
     if (!options.json) {
       console.log(`🔄 Updating task ${taskId} property: ${propName}`);
@@ -320,7 +320,8 @@ export const updateTaskCommand = new Command('update')
             outputJson({ error: `Unknown property: ${propName}` });
           } else {
             console.error(`❌ Unknown property: ${propName}`);
-            console.error('Valid properties: name, description, markdown_description, status, priority, assignees, due_date, tags');
+            console.error('Valid properties: name, description, markdown_description (recommended), status, priority, assignees, due_date, tags');
+            console.error('Tip: Use markdown_description for rich formatted content with --file option for long content');
           }
           process.exit(1);
       }
