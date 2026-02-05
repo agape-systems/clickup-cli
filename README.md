@@ -69,14 +69,6 @@ clickup list create <parentId> "<list name>" [--in-space]
 clickup team <teamId> task ls
 ```
 
-### Legacy Commands (Backward Compatible)
-
-```bash
-clickup create-space <teamId> <spaceName>
-clickup create-folder <spaceId> <folderName>
-clickup create-list <parentId> <listName> [--in-space]
-```
-
 ## Options
 
 ### Task Creation Options
