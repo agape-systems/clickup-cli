@@ -66,6 +66,10 @@ export interface ClickUpTasksResponse {
   tasks: ClickUpTask[];
 }
 
+export interface ClickUpListsResponse {
+  lists: ClickUpList[];
+}
+
 export interface ClickUpTaskResponse extends ClickUpTask {}
 
 export interface ClickUpSpaceResponse extends ClickUpSpace {}

@@ -10,7 +10,7 @@ export { spaceCommand, createSpaceCommand } from './space';
 export { folderCommand, createFolderCommand } from './folder';
 
 // List commands
-export { listCommand, createListCommand } from './list';
+export { listCommand, createListCommand, listListsCommand } from './list';
 
 // Team commands
 export { teamCommand, listTeamTasksCommand } from './team';
