@@ -1,6 +1,25 @@
 import { makeApiRequest } from '../api';
 import { ClickUpTask } from '../types';
 
+// Detect custom task IDs (e.g., AS-1341, SK-123, BD-42)
+export function isCustomId(taskId: string): boolean {
+  return /^[A-Za-z]{2,}-\d+$/.test(taskId);
+}
+
+// Build the API path for a task, adding custom_task_ids params when needed
+export function getTaskPath(taskId: string, basePath?: string): string {
+  const path = basePath || `/api/v2/task/${taskId}`;
+  if (isCustomId(taskId)) {
+    const teamId = process.env.CLICKUP_TEAM_ID;
+    if (!teamId) {
+      throw new Error('CLICKUP_TEAM_ID environment variable is required when using custom task IDs (e.g., AS-1341). Set it to your ClickUp workspace/team ID.');
+    }
+    const separator = path.includes('?') ? '&' : '?';
+    return `${path}${separator}custom_task_ids=true&team_id=${teamId}`;
+  }
+  return path;
+}
+
 // Retry function for getting custom_id after task creation
 export async function waitForCustomId(taskId: string, maxAttempts: number = 4, delayMs: number = 5000): Promise<ClickUpTask> {
   let attempts = 0;

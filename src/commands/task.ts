@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { Command } from 'commander';
 import { makeApiRequest } from '../api';
 import { ClickUpTask, ClickUpTasksResponse, TaskCreateOptions, TaskUpdateOptions } from '../types';
-import { waitForCustomId, outputJson, outputPretty } from '../utils';
+import { waitForCustomId, outputJson, outputPretty, isCustomId, getTaskPath } from '../utils';
 
 // List tasks in a list or all accessible tasks
 export const listTasksCommand = new Command('ls')
@@ -194,7 +194,7 @@ export const getTaskCommand = new Command('<taskId>')
     }
     
     try {
-      const result = await makeApiRequest<ClickUpTask>('GET', `/api/v2/task/${taskId}`);
+      const result = await makeApiRequest<ClickUpTask>('GET', getTaskPath(taskId));
       
       if (options.json) {
         outputJson(result);
@@ -326,7 +326,7 @@ export const updateTaskCommand = new Command('update')
           process.exit(1);
       }
       
-      const result = await makeApiRequest<ClickUpTask>('PUT', `/api/v2/task/${taskId}`, payload);
+      const result = await makeApiRequest<ClickUpTask>('PUT', getTaskPath(taskId), payload);
       
       if (options.json) {
         outputJson(result);
@@ -360,7 +360,7 @@ export const deleteTasksCommand = new Command('rm')
       
       for (const taskId of taskIdArray) {
         try {
-          await makeApiRequest('DELETE', `/api/v2/task/${taskId}`);
+          await makeApiRequest('DELETE', getTaskPath(taskId));
           console.log(`✅ Deleted task: ${taskId}`);
           results.push({ taskId, success: true });
         } catch (error) {
@@ -405,12 +405,13 @@ export const taskCommand = new Command('task')
       process.exit(1);
     }
     
-    // Check if this looks like a task ID (starts with ac_, is hex, or is alphanumeric)
+    // Check if this looks like a task ID (starts with ac_, is hex, alphanumeric, or custom ID like AS-1341)
     if (taskId && (
       taskId.startsWith('ac_') || 
       /^[a-f0-9]{6,}$/i.test(taskId) || 
       /^[0-9]{6,}$/.test(taskId) ||
-      /^[a-z0-9]{6,}$/i.test(taskId)
+      /^[a-z0-9]{6,}$/i.test(taskId) ||
+      isCustomId(taskId)
     )) {
       // If there are additional args, treat as property update
       if (args.length >= 2 && args[0]) {
@@ -465,7 +466,7 @@ export const taskCommand = new Command('task')
               process.exit(1);
           }
           
-          const result = await makeApiRequest<ClickUpTask>('PUT', `/api/v2/task/${taskId}`, payload);
+          const result = await makeApiRequest<ClickUpTask>('PUT', getTaskPath(taskId), payload);
           
           console.log(`✅ Task property updated successfully!`);
           console.log(`Task ID: ${taskId}`);
@@ -481,7 +482,7 @@ export const taskCommand = new Command('task')
         console.log(`🔄 Fetching task: ${taskId}`);
         
         try {
-          const result = await makeApiRequest<ClickUpTask>('GET', `/api/v2/task/${taskId}`);
+          const result = await makeApiRequest<ClickUpTask>('GET', getTaskPath(taskId));
           
           if (options.json) {
             outputJson(result);
@@ -532,7 +533,7 @@ export const taskCommand = new Command('task')
       console.error('  clickup task <taskId> <property> <value>');
       console.error('  clickup task rm <taskId1,taskId2,...>');
       console.error('');
-      console.error('Task IDs should start with "ac_" or be 8+ hex/numeric characters');
+      console.error('Task IDs should start with "ac_", be 8+ hex/numeric characters, or be a custom ID (e.g., AS-1341)');
       process.exit(1);
     }
   });
